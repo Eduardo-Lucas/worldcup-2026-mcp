@@ -343,36 +343,42 @@ def render_match(m: dict, show_scorers: bool = True):
 # Chat — intent detection + answer
 # ─────────────────────────────────────────────
 
-# Reverse map: PT display name → English name
-_PT_TO_EN = {v.lower(): k for k, v in TEAM_NAMES_PT.items()}
-# Also map English names to themselves (case-insensitive)
-_ALL_TEAMS_EN = {k.lower(): k for k in TEAM_NAMES_PT.keys()}
+import re
+import unicodedata
+
+
+def _strip_accents(text: str) -> str:
+    return unicodedata.normalize("NFD", text.lower()).encode("ascii", "ignore").decode("ascii")
+
+
+# Build accent-normalized lookup maps at module load time
+_PT_TO_EN_NORM = {_strip_accents(v): k for k, v in TEAM_NAMES_PT.items()}
+_EN_NORM = {_strip_accents(k): k for k in TEAM_NAMES_PT.keys()}
 
 
 def _detect_team(q: str) -> str | None:
-    """Return the English team name if any team name appears in the query."""
-    q_lower = q.lower()
-    # Check Portuguese names first (more specific, e.g. "França" vs "France")
-    for pt, en in _PT_TO_EN.items():
-        if pt in q_lower:
+    """Return the English team name if any team name (EN or PT, with or without accents) appears in the query."""
+    q_norm = _strip_accents(q)
+    # PT names first (longer/more specific → e.g. "paises baixos" before "paises")
+    for pt_norm, en in sorted(_PT_TO_EN_NORM.items(), key=lambda x: -len(x[0])):
+        if pt_norm in q_norm:
             return en
-    for en_lower, en in _ALL_TEAMS_EN.items():
-        if en_lower in q_lower:
+    for en_norm, en in sorted(_EN_NORM.items(), key=lambda x: -len(x[0])):
+        if en_norm in q_norm:
             return en
     return None
 
 
 def _detect_group(q: str) -> str | None:
     """Return group letter if query mentions a specific group."""
-    import re
-    m = re.search(r'\bgroup\s+([A-La-l])\b|\bgrupo\s+([A-La-l])\b', q, re.IGNORECASE)
+    m = re.search(r'\b(?:group|grupo)\s+([A-La-l])\b', q, re.IGNORECASE)
     if m:
-        return (m.group(1) or m.group(2)).upper()
+        return m.group(1).upper()
     return None
 
 
 async def _answer(question: str) -> str:
-    q = question.lower()
+    q_norm = _strip_accents(question)
 
     # 1. Specific group standings
     group = _detect_group(question)
@@ -384,21 +390,33 @@ async def _answer(question: str) -> str:
     if team:
         return await search_team(team)
 
-    # 3. All groups summary
-    all_groups_kw = ["all groups", "todos os grupos", "all_groups", "overview", "visão geral"]
-    if any(kw in q for kw in all_groups_kw):
+    # 3. All groups / standings overview
+    standings_kw = [
+        "all groups", "todos os grupos", "overview", "visao geral",
+        "classificacao", "tabela", "standings", "classificados",
+        "quem passou", "quem classificou", "quem se classificou",
+        "todos os times", "all teams",
+    ]
+    if any(kw in q_norm for kw in standings_kw):
         return await all_groups()
 
     # 4. Statistics / top scorers
-    stats_kw = ["statistic", "stats", "artilheiro", "scorer", "gols marcados",
-                "top scorer", "goals", "média", "average", "biggest win", "maior goleada"]
-    if any(kw in q for kw in stats_kw):
+    stats_kw = [
+        "statistic", "stats", "artilheiro", "artilharia", "scorer",
+        "top scorer", "gols", "goals", "media", "average",
+        "biggest win", "maior goleada", "goleada", "hat-trick",
+        "quantos gols", "how many goals", "quem marcou mais",
+    ]
+    if any(kw in q_norm for kw in stats_kw):
         return await cup_statistics()
 
     # 5. Upcoming matches
-    upcoming_kw = ["upcoming", "next", "próximo", "próxima", "schedule",
-                   "agenda", "futuro", "quando joga", "when"]
-    if any(kw in q for kw in upcoming_kw):
+    upcoming_kw = [
+        "upcoming", "next match", "proximo", "proxima", "schedule",
+        "agenda", "quando joga", "when does", "vai jogar",
+        "jogos que faltam", "falta jogar", "futuro", "proximos jogos",
+    ]
+    if any(kw in q_norm for kw in upcoming_kw):
         return await upcoming_matches(count=8)
 
     # 6. Recent / results (default fallback)
