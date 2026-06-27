@@ -1,103 +1,110 @@
-# ⚽ MCP Server - Copa do Mundo 2026
+# ⚽ FIFA World Cup 2026 — MCP Server & Dashboard
 
-Servidor MCP construído com **FastMCP** para consultar dados da Copa do Mundo FIFA 2026 diretamente de qualquer IA compatível com o protocolo MCP (Claude, Cursor, etc.).
+An MCP server built with **FastMCP** to query FIFA World Cup 2026 data directly from any AI compatible with the MCP protocol (Claude, Cursor, etc.), plus a **Streamlit dashboard** for standalone use.
 
-## 🚀 Ferramentas disponíveis
+Data is sourced from [openfootball/worldcup.json](https://github.com/openfootball/worldcup.json) — open source, no API key required.
 
-| Tool | Descrição | Parâmetros |
-|------|-----------|------------|
-| `jogos_recentes` | Placares dos jogos mais recentes | `quantidade` (default: 5) |
-| `proximos_jogos` | Próximos jogos com probabilidades | `quantidade` (default: 5) |
-| `classificacao_grupo` | Tabela de um grupo específico | `grupo` (A–L) |
-| `buscar_time` | Info completa de um time | `nome_time` (em inglês) |
-| `todos_grupos` | Resumo de todos os 12 grupos | — |
-| `estatisticas_copa` | Gols, médias e destaques | — |
+## 🚀 Available Tools
 
-## 📦 Instalação
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `jogos_recentes` | Scores from the most recent matches | `quantidade` (default: 5) |
+| `proximos_jogos` | Upcoming scheduled matches | `quantidade` (default: 5) |
+| `classificacao_grupo` | Standings for a specific group | `grupo` (A–L) |
+| `buscar_time` | Full info for a team: group, stats, and all matches | `nome_time` (in English) |
+| `todos_grupos` | Summary of all 12 groups | — |
+| `estatisticas_copa` | Goals, averages, top scorers, and highlights | — |
+
+## 📦 Installation
 
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/worldcup-mcp
+git clone https://github.com/your-username/worldcup-mcp
 cd worldcup-mcp
 
-# Instale as dependências
-pip install fastmcp httpx
-
-# Execute o servidor
-python -m src.server
+pip install fastmcp httpx streamlit
 ```
 
-## ⚙️ Configurar no Claude Desktop
+## 🖥️ Streamlit Dashboard
 
-Edite `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+A visual dashboard with English/Portuguese language switching (🇺🇸 / 🇧🇷):
+
+```bash
+streamlit run src/app.py
+```
+
+Open [http://localhost:8501](http://localhost:8501) in your browser.
+
+**Pages:**
+- 🏆 Recent Matches — scores and goal scorers
+- 📅 Upcoming Matches — schedule with venues
+- 📊 Standings — all 12 groups with W/D/L/GF/GA/GD
+- 🔍 Team Search — full team history and upcoming fixtures
+- 📈 Statistics — top scorers, biggest win, goals per game
+
+## ⚙️ MCP Server — Claude Code
+
+```bash
+claude mcp add worldcup-2026 python -- -m src.server
+```
+
+## ⚙️ MCP Server — Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
-    "copa-2026": {
+    "worldcup-2026": {
       "command": "python",
       "args": ["-m", "src.server"],
-      "cwd": "/caminho/absoluto/para/worldcup-mcp"
+      "cwd": "/absolute/path/to/worldcup-mcp"
     }
   }
 }
 ```
 
-Reinicie o Claude Desktop. As ferramentas estarão disponíveis automaticamente.
+Restart Claude Desktop. The tools will be available automatically.
 
-## ⚙️ Configurar no Claude Code (VS Code)
+## 💬 Usage Examples
 
-```bash
-claude mcp add copa-2026 python -- -m src.server
-```
+Once connected, ask Claude:
 
-## 🧪 Rodando os testes
+- *"What were yesterday's World Cup results?"*
+- *"How is Brazil doing in the standings?"*
+- *"Show me Group C table"*
+- *"Who are the top scorers so far?"*
+- *"What are Brazil's upcoming matches?"*
+
+## 🧪 Tests
 
 ```bash
 pip install pytest pytest-asyncio
 pytest tests/ -v
 ```
 
-## 💬 Exemplos de uso
-
-Após conectar o servidor, você pode perguntar ao Claude:
-
-- *"Quais foram os resultados de ontem na Copa?"*
-- *"Como está o Brasil na classificação?"*
-- *"Qual a probabilidade da Argentina ganhar hoje?"*
-- *"Me mostra a tabela do Grupo I"*
-- *"Quantos gols foram marcados na Copa até agora?"*
-
-## 🏗️ Arquitetura
+## 🏗️ Project Structure
 
 ```
 worldcup-mcp/
 ├── src/
-│   └── server.py          # Servidor MCP com FastMCP
+│   ├── server.py          # MCP server (FastMCP tools)
+│   └── app.py             # Streamlit dashboard
 ├── tests/
-│   └── test_server.py     # Testes das tools
+│   └── test_server.py     # Tool unit tests
 ├── pyproject.toml
 ├── claude_desktop_config.json
 └── README.md
 ```
 
-## 🔌 Expandindo com SportRadar API
+## 📝 How It Works
 
-O servidor inclui suporte opcional à SportRadar API. Para ativar dados em tempo real:
-
-```bash
-export SPORTRADAR_API_KEY="sua_chave_aqui"
-```
-
-Os dados mockados são substituídos automaticamente quando a chave está presente.
-
-## 📝 Conceitos MCP usados
-
-- **`@mcp.tool()`** — expõe funções Python como ferramentas para a IA
-- **Docstrings** — viram descrição automática da tool (a IA lê isso!)
-- **Type hints** — definem o schema dos parâmetros
-- **`mcp.run()`** — inicia o servidor via stdio
+- **`@mcp.tool()`** — exposes Python functions as AI tools
+- **Docstrings** — become the tool description the AI reads
+- **Type hints** — define the parameter schema
+- **`mcp.run()`** — starts the server over stdio
+- **Standings** — calculated dynamically from match results (no separate endpoint needed)
+- **Placeholder resolver** — knockout stage codes like `W73`, `1G`, `3A/B/C/D/F` are automatically resolved to real team names as results come in
 
 ---
 
-Construído com [FastMCP](https://github.com/jlowin/fastmcp) · Dados: SportRadar FIFA World Cup API
+Built with [FastMCP](https://github.com/jlowin/fastmcp) · Data: [openfootball/worldcup.json](https://github.com/openfootball/worldcup.json)
