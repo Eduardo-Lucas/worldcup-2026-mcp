@@ -1,5 +1,5 @@
 """
-Testes do MCP Server - Copa 2026 (openfootball)
+Tests for the FIFA World Cup 2026 MCP Server
 """
 
 import pytest
@@ -9,126 +9,125 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.server import (
-    jogos_recentes,
-    proximos_jogos,
-    classificacao_grupo,
-    buscar_time,
-    todos_grupos,
-    estatisticas_copa,
+    recent_matches,
+    upcoming_matches,
+    group_standings,
+    search_team,
+    all_groups,
+    cup_statistics,
 )
 
 
-class TestJogosRecentes:
-    async def test_retorna_jogos(self):
-        resultado = await jogos_recentes()
-        assert "Copa 2026" in resultado
-        assert "JOGOS RECENTES" in resultado
+class TestRecentMatches:
+    async def test_returns_matches(self):
+        result = await recent_matches()
+        assert "World Cup 2026" in result
+        assert "RECENT MATCHES" in result
 
-    async def test_quantidade_maxima_respeitada(self):
-        resultado = await jogos_recentes(quantidade=100)
-        # Cada jogo gera ao menos 2 linhas; 20 jogos = até 40 linhas de partida
-        assert resultado.count("vs") == 0  # encerrados não têm "vs"
+    async def test_max_count_respected(self):
+        result = await recent_matches(count=100)
+        lines_with_pipe = [l for l in result.split("\n") if "|" in l]
+        assert len(lines_with_pipe) <= 20
 
-    async def test_tem_placar(self):
-        resultado = await jogos_recentes(3)
-        # placares no formato N-N
+    async def test_has_score(self):
         import re
-        assert re.search(r"\d-\d", resultado)
+        result = await recent_matches(3)
+        assert re.search(r"\d-\d", result)
 
 
-class TestProximosJogos:
-    async def test_retorna_proximos_jogos(self):
-        resultado = await proximos_jogos()
-        assert "PRÓXIMOS JOGOS" in resultado
+class TestUpcomingMatches:
+    async def test_returns_upcoming(self):
+        result = await upcoming_matches()
+        assert "UPCOMING MATCHES" in result
 
-    async def test_tem_vs(self):
-        resultado = await proximos_jogos(3)
-        assert "vs" in resultado
+    async def test_has_vs(self):
+        result = await upcoming_matches(3)
+        assert "vs" in result
 
 
-class TestClassificacaoGrupo:
-    async def test_grupo_c_tem_brasil(self):
-        resultado = await classificacao_grupo("C")
-        assert "Brazil" in resultado
-        assert "GRUPO C" in resultado
+class TestGroupStandings:
+    async def test_group_c_has_brazil(self):
+        result = await group_standings("C")
+        assert "Brazil" in result
+        assert "GROUP C" in result
 
-    async def test_grupo_invalido(self):
-        resultado = await classificacao_grupo("Z")
-        assert "não encontrado" in resultado
+    async def test_invalid_group(self):
+        result = await group_standings("Z")
+        assert "not found" in result
 
-    async def test_grupo_minusculo(self):
-        resultado = await classificacao_grupo("c")
-        assert "Brazil" in resultado
+    async def test_lowercase_group(self):
+        result = await group_standings("c")
+        assert "Brazil" in result
 
-    async def test_tem_indicador_classificacao(self):
-        resultado = await classificacao_grupo("A")
-        assert "✅" in resultado
+    async def test_has_qualified_marker(self):
+        result = await group_standings("A")
+        assert "✅" in result
 
-    async def test_todos_grupos_validos(self):
+    async def test_all_groups_valid(self):
         for g in "ABCDEFGHIJKL":
-            resultado = await classificacao_grupo(g)
-            assert "não encontrado" not in resultado
+            result = await group_standings(g)
+            assert "not found" not in result
 
 
-class TestBuscarTime:
-    async def test_buscar_brasil(self):
-        resultado = await buscar_time("Brazil")
-        assert "Brazil" in resultado
-        assert "Grupo C" in resultado
+class TestSearchTeam:
+    async def test_search_brazil(self):
+        result = await search_team("Brazil")
+        assert "Brazil" in result
+        assert "Group C" in result
 
-    async def test_buscar_franca(self):
-        resultado = await buscar_time("France")
-        assert "France" in resultado
+    async def test_search_france(self):
+        result = await search_team("France")
+        assert "France" in result
 
-    async def test_buscar_argentina(self):
-        resultado = await buscar_time("Argentina")
-        assert "Argentina" in resultado
-        assert "Grupo J" in resultado
+    async def test_search_argentina(self):
+        result = await search_team("Argentina")
+        assert "Argentina" in result
+        assert "Group J" in result
 
-    async def test_time_inexistente(self):
-        resultado = await buscar_time("Planeta Marte FC")
-        assert "não encontrado" in resultado
+    async def test_team_not_found(self):
+        result = await search_team("Planet Mars FC")
+        assert "not found" in result
 
-    async def test_busca_case_insensitive(self):
-        resultado_upper = await buscar_time("BRAZIL")
-        resultado_lower = await buscar_time("brazil")
-        assert "Brazil" in resultado_upper
-        assert "Brazil" in resultado_lower
+    async def test_case_insensitive(self):
+        result_upper = await search_team("BRAZIL")
+        result_lower = await search_team("brazil")
+        assert "Brazil" in result_upper
+        assert "Brazil" in result_lower
 
-    async def test_brasil_tem_jogos_realizados(self):
-        resultado = await buscar_time("Brazil")
-        assert "Jogos realizados" in resultado
+    async def test_brazil_has_played_matches(self):
+        result = await search_team("Brazil")
+        assert "Matches played" in result
 
-    async def test_brasil_tem_artilheiros(self):
-        resultado = await buscar_time("Brazil")
-        assert "⚽" in resultado
-
-
-class TestTodosGrupos:
-    async def test_tem_todos_grupos(self):
-        resultado = await todos_grupos()
-        for letra in "ABCDEFGHIJKL":
-            assert f"GRUPO {letra}" in resultado
-
-    async def test_tem_marcadores_classificacao(self):
-        resultado = await todos_grupos()
-        assert "✅" in resultado
-        assert "❌" in resultado
+    async def test_brazil_has_scorers(self):
+        result = await search_team("Brazil")
+        assert "⚽" in result
 
 
-class TestEstatisticas:
-    async def test_tem_gols(self):
-        resultado = await estatisticas_copa()
-        assert "gols" in resultado.lower()
+class TestAllGroups:
+    async def test_has_all_groups(self):
+        result = await all_groups()
+        for letter in "ABCDEFGHIJKL":
+            assert f"GROUP {letter}" in result
 
-    async def test_tem_media(self):
-        resultado = await estatisticas_copa()
-        assert "Média" in resultado
+    async def test_has_qualified_markers(self):
+        result = await all_groups()
+        assert "✅" in result
+        assert "❌" in result
 
-    async def test_tem_maior_goleada(self):
-        resultado = await estatisticas_copa()
-        assert "goleada" in resultado.lower()
 
-    async def test_tem_artilheiros(self):
-        resultado = await estatisticas_copa()
-        assert "Artilheiros" in resultado
+class TestCupStatistics:
+    async def test_has_goals(self):
+        result = await cup_statistics()
+        assert "goals" in result.lower()
+
+    async def test_has_average(self):
+        result = await cup_statistics()
+        assert "Average" in result
+
+    async def test_has_biggest_win(self):
+        result = await cup_statistics()
+        assert "Biggest win" in result
+
+    async def test_has_top_scorers(self):
+        result = await cup_statistics()
+        assert "Top Scorers" in result

@@ -8,12 +8,12 @@ Data is sourced from [openfootball/worldcup.json](https://github.com/openfootbal
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `jogos_recentes` | Scores from the most recent matches | `quantidade` (default: 5) |
-| `proximos_jogos` | Upcoming scheduled matches | `quantidade` (default: 5) |
-| `classificacao_grupo` | Standings for a specific group | `grupo` (A–L) |
-| `buscar_time` | Full info for a team: group, stats, and all matches | `nome_time` (in English) |
-| `todos_grupos` | Summary of all 12 groups | — |
-| `estatisticas_copa` | Goals, averages, top scorers, and highlights | — |
+| `recent_matches` | Scores from the most recent matches | `count` (default: 5) |
+| `upcoming_matches` | Upcoming scheduled matches | `count` (default: 5) |
+| `group_standings` | Standings for a specific group | `group` (A–L) |
+| `search_team` | Full info for a team: group, stats, and all matches | `team_name` (in English) |
+| `all_groups` | Summary of all 12 groups | — |
+| `cup_statistics` | Goals, averages, top scorers, and highlights | — |
 
 ## 📦 Installation
 

@@ -199,276 +199,274 @@ def _calcular_standings(matches: list[dict]) -> dict[str, list[dict]]:
 
 
 # ─────────────────────────────────────────────
-# Ferramentas MCP (Tools)
+# MCP Tools
 # ─────────────────────────────────────────────
 
 
 @mcp.tool()
-async def jogos_recentes(quantidade: int = 5) -> str:
+async def recent_matches(count: int = 5) -> str:
     """
-    Retorna os jogos mais recentes da Copa do Mundo 2026 com placares.
+    Returns the most recent FIFA World Cup 2026 match scores.
 
     Args:
-        quantidade: Número de jogos a retornar (padrão: 5, máximo: 20)
+        count: Number of matches to return (default: 5, max: 20)
     """
-    quantidade = min(quantidade, 20)
+    count = min(count, 20)
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
     standings = _calcular_standings(matches)
     resolver = _build_resolver(matches, standings)
 
-    encerrados = [m for m in matches if _encerrado(m)]
-    recentes = encerrados[-quantidade:][::-1]
+    finished = [m for m in matches if _encerrado(m)]
+    recent = finished[-count:][::-1]
 
-    linhas = ["🏆 JOGOS RECENTES - Copa 2026 [openfootball]\n"]
-    for m in recentes:
-        data = _format_brt(m["date"], m.get("time"))
-        grupo = f" | {m['group']}" if m.get("group") else f" | {m.get('round', '')}"
+    lines = ["🏆 RECENT MATCHES - World Cup 2026 [openfootball]\n"]
+    for m in recent:
+        date = _format_brt(m["date"], m.get("time"))
+        context = f" | {m['group']}" if m.get("group") else f" | {m.get('round', '')}"
         t1 = _resolver_nome(m["team1"], resolver)
         t2 = _resolver_nome(m["team2"], resolver)
-        linhas.append(f"📅 {data}{grupo}")
-        linhas.append(f"   {t1} {_placar(m)} {t2}")
+        lines.append(f"📅 {date}{context}")
+        lines.append(f"   {t1} {_placar(m)} {t2}")
         if m.get("goals1") or m.get("goals2"):
             for g in m.get("goals1", []):
-                linhas.append(f"   ⚽ {t1}: {g['name']} {g.get('minute','')}′")
+                lines.append(f"   ⚽ {t1}: {g['name']} {g.get('minute','')}′")
             for g in m.get("goals2", []):
-                linhas.append(f"   ⚽ {t2}: {g['name']} {g.get('minute','')}′")
-        linhas.append("")
+                lines.append(f"   ⚽ {t2}: {g['name']} {g.get('minute','')}′")
+        lines.append("")
 
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 @mcp.tool()
-async def proximos_jogos(quantidade: int = 5) -> str:
+async def upcoming_matches(count: int = 5) -> str:
     """
-    Retorna os próximos jogos agendados da Copa do Mundo 2026.
+    Returns the next scheduled FIFA World Cup 2026 matches.
 
     Args:
-        quantidade: Número de jogos a retornar (padrão: 5)
+        count: Number of matches to return (default: 5, max: 20)
     """
-    quantidade = min(quantidade, 20)
+    count = min(count, 20)
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
     standings = _calcular_standings(matches)
     resolver = _build_resolver(matches, standings)
 
-    futuros = [m for m in matches if not _encerrado(m)][:quantidade]
+    upcoming = [m for m in matches if not _encerrado(m)][:count]
 
-    linhas = ["📅 PRÓXIMOS JOGOS - Copa 2026 [openfootball]\n"]
-    for m in futuros:
-        data = _format_brt(m["date"], m.get("time"))
-        contexto = m.get("group") or m.get("round", "")
-        local = m.get("ground", "")
+    lines = ["📅 UPCOMING MATCHES - World Cup 2026 [openfootball]\n"]
+    for m in upcoming:
+        date = _format_brt(m["date"], m.get("time"))
+        context = m.get("group") or m.get("round", "")
+        venue = m.get("ground", "")
         t1 = _resolver_nome(m["team1"], resolver)
         t2 = _resolver_nome(m["team2"], resolver)
-        linhas.append(f"⚽ {data} | {contexto}")
-        linhas.append(f"   {t1} vs {t2}{' | ' + local if local else ''}\n")
+        lines.append(f"⚽ {date} | {context}")
+        lines.append(f"   {t1} vs {t2}{' | ' + venue if venue else ''}\n")
 
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 @mcp.tool()
-async def classificacao_grupo(grupo: str) -> str:
+async def group_standings(group: str) -> str:
     """
-    Retorna a classificação de um grupo específico da Copa 2026.
+    Returns the standings for a specific World Cup 2026 group.
 
     Args:
-        grupo: Letra do grupo (A até L)
+        group: Group letter (A through L)
     """
-    grupo = grupo.upper().strip()
+    group = group.upper().strip()
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
     standings = _calcular_standings(matches)
 
-    if grupo not in standings:
-        grupos_validos = ", ".join(sorted(standings.keys()))
-        return f"❌ Grupo '{grupo}' não encontrado. Grupos válidos: {grupos_validos}"
+    if group not in standings:
+        valid = ", ".join(sorted(standings.keys()))
+        return f"❌ Group '{group}' not found. Valid groups: {valid}"
 
-    times = standings[grupo]
-    linhas = [f"📊 GRUPO {grupo} - Classificação [openfootball]\n"]
-    linhas.append(f"{'':4} {'Time':<25} {'Pts':<5} {'V':<4} {'E':<4} {'D':<4} {'GP':<4} {'GC':<4} {'SG'}")
-    linhas.append("-" * 58)
-    for t in times:
-        qualificado = "✅" if t["pos"] <= 2 else "  "
-        sg = t["gp"] - t["gc"]
-        linhas.append(
-            f"{qualificado} {t['pos']:<2} {t['time']:<25} {t['pts']:<5} {t['v']:<4} {t['e']:<4} {t['d']:<4} {t['gp']:<4} {t['gc']:<4} {sg:+d}"
+    teams = standings[group]
+    lines = [f"📊 GROUP {group} - Standings [openfootball]\n"]
+    lines.append(f"{'':4} {'Team':<25} {'Pts':<5} {'W':<4} {'D':<4} {'L':<4} {'GF':<4} {'GA':<4} {'GD'}")
+    lines.append("-" * 58)
+    for t in teams:
+        qualified = "✅" if t["pos"] <= 2 else "  "
+        gd = t["gp"] - t["gc"]
+        lines.append(
+            f"{qualified} {t['pos']:<2} {t['time']:<25} {t['pts']:<5} {t['v']:<4} {t['e']:<4} {t['d']:<4} {t['gp']:<4} {t['gc']:<4} {gd:+d}"
         )
 
-    linhas.append("\n✅ = Classificado para as oitavas")
-    return "\n".join(linhas)
+    lines.append("\n✅ = Qualified for Round of 32")
+    return "\n".join(lines)
 
 
 @mcp.tool()
-async def buscar_time(nome_time: str) -> str:
+async def search_team(team_name: str) -> str:
     """
-    Busca informações completas de um time: grupo, classificação e todos os jogos.
+    Returns full information for a team: group, standings, and all matches.
 
     Args:
-        nome_time: Nome do time em inglês (ex: Brazil, France, Argentina)
+        team_name: Team name in English (e.g. Brazil, France, Argentina)
     """
-    nome_lower = nome_time.lower().strip()
+    name_lower = team_name.lower().strip()
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
     standings = _calcular_standings(matches)
     resolver = _build_resolver(matches, standings)
 
-    # Mapa reverso: nome real → lista de códigos que resolvem para ele
     reverso: dict[str, list[str]] = {}
-    for codigo, nome in resolver.items():
-        reverso.setdefault(nome.lower(), []).append(codigo)
+    for code, name in resolver.items():
+        reverso.setdefault(name.lower(), []).append(code)
 
-    def _pertence(m: dict) -> bool:
+    def _belongs(m: dict) -> bool:
         t1 = _resolver_nome(m["team1"], resolver).lower()
         t2 = _resolver_nome(m["team2"], resolver).lower()
-        return nome_lower in t1 or nome_lower in t2
+        return name_lower in t1 or name_lower in t2
 
-    jogos_time = [m for m in matches if _pertence(m)]
+    team_matches = [m for m in matches if _belongs(m)]
 
-    if not jogos_time:
-        return f"❌ Time '{nome_time}' não encontrado. Verifique o nome em inglês."
+    if not team_matches:
+        return f"❌ Team '{team_name}' not found. Please use the English name."
 
-    # Nome oficial a partir dos dados do grupo
-    nome_oficial = nome_time
-    for letra, times in standings.items():
-        for t in times:
-            if nome_lower in t["time"].lower():
-                nome_oficial = t["time"]
+    official_name = team_name
+    for letter, teams in standings.items():
+        for t in teams:
+            if name_lower in t["time"].lower():
+                official_name = t["time"]
                 break
 
-    grupo_encontrado = None
-    time_info = None
-    for letra, times in standings.items():
-        for t in times:
-            if nome_lower in t["time"].lower():
-                grupo_encontrado = letra
-                time_info = t
+    group_found = None
+    team_info = None
+    for letter, teams in standings.items():
+        for t in teams:
+            if name_lower in t["time"].lower():
+                group_found = letter
+                team_info = t
                 break
-        if grupo_encontrado:
+        if group_found:
             break
 
-    linhas = [f"🔍 {nome_oficial} - Copa 2026 [openfootball]\n"]
+    lines = [f"🔍 {official_name} - World Cup 2026 [openfootball]\n"]
 
-    if time_info and grupo_encontrado:
-        classificado = "✅ Classificado" if time_info["pos"] <= 2 else "❌ Fora da zona"
-        sg = time_info["gp"] - time_info["gc"]
-        linhas.append(f"📊 Grupo {grupo_encontrado} | {time_info['pos']}º lugar")
-        linhas.append(f"🏅 Pts: {time_info['pts']} | V:{time_info['v']} E:{time_info['e']} D:{time_info['d']} | GP:{time_info['gp']} GC:{time_info['gc']} SG:{sg:+d}")
-        linhas.append(f"📌 Status: {classificado}\n")
+    if team_info and group_found:
+        status = "✅ Qualified" if team_info["pos"] <= 2 else "❌ Eliminated"
+        gd = team_info["gp"] - team_info["gc"]
+        lines.append(f"📊 Group {group_found} | {team_info['pos']}{'st' if team_info['pos'] == 1 else 'nd' if team_info['pos'] == 2 else 'rd' if team_info['pos'] == 3 else 'th'} place")
+        lines.append(f"🏅 Pts: {team_info['pts']} | W:{team_info['v']} D:{team_info['e']} L:{team_info['d']} | GF:{team_info['gp']} GA:{team_info['gc']} GD:{gd:+d}")
+        lines.append(f"📌 Status: {status}\n")
 
-    encerrados = [m for m in jogos_time if _encerrado(m)]
-    futuros = [m for m in jogos_time if not _encerrado(m)]
+    finished = [m for m in team_matches if _encerrado(m)]
+    upcoming = [m for m in team_matches if not _encerrado(m)]
 
-    if encerrados:
-        linhas.append("📅 Jogos realizados:")
-        for m in encerrados:
-            data = _format_brt(m["date"], m.get("time"))
-            contexto = m.get("group") or m.get("round", "")
+    if finished:
+        lines.append("📅 Matches played:")
+        for m in finished:
+            date = _format_brt(m["date"], m.get("time"))
+            context = m.get("group") or m.get("round", "")
             t1 = _resolver_nome(m["team1"], resolver)
             t2 = _resolver_nome(m["team2"], resolver)
-            linhas.append(f"  {data} | {contexto}")
-            linhas.append(f"  {t1} {_placar(m)} {t2}")
+            lines.append(f"  {date} | {context}")
+            lines.append(f"  {t1} {_placar(m)} {t2}")
             for g in m.get("goals1", []):
-                linhas.append(f"    ⚽ {t1}: {g['name']} {g.get('minute','')}′")
+                lines.append(f"    ⚽ {t1}: {g['name']} {g.get('minute','')}′")
             for g in m.get("goals2", []):
-                linhas.append(f"    ⚽ {t2}: {g['name']} {g.get('minute','')}′")
+                lines.append(f"    ⚽ {t2}: {g['name']} {g.get('minute','')}′")
 
-    if futuros:
-        linhas.append("\n⏳ Próximos jogos:")
-        for m in futuros:
-            data = _format_brt(m["date"], m.get("time"))
-            contexto = m.get("group") or m.get("round", "")
-            local = m.get("ground", "")
+    if upcoming:
+        lines.append("\n⏳ Upcoming matches:")
+        for m in upcoming:
+            date = _format_brt(m["date"], m.get("time"))
+            context = m.get("group") or m.get("round", "")
+            venue = m.get("ground", "")
             t1 = _resolver_nome(m["team1"], resolver)
             t2 = _resolver_nome(m["team2"], resolver)
-            linhas.append(f"  {data} | {contexto}")
-            linhas.append(f"  {t1} vs {t2}{' | ' + local if local else ''}")
+            lines.append(f"  {date} | {context}")
+            lines.append(f"  {t1} vs {t2}{' | ' + venue if venue else ''}")
 
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 @mcp.tool()
-async def todos_grupos() -> str:
+async def all_groups() -> str:
     """
-    Retorna um resumo da classificação de todos os grupos da Copa 2026.
+    Returns a summary of all 12 group standings in the World Cup 2026.
     """
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
     standings = _calcular_standings(matches)
-    linhas = ["🏆 COPA DO MUNDO 2026 - Resumo dos Grupos [openfootball]\n"]
+    lines = ["🏆 FIFA WORLD CUP 2026 - All Groups [openfootball]\n"]
 
-    for letra in sorted(standings.keys()):
-        times = standings[letra]
-        linhas.append(f"GRUPO {letra}:")
-        for t in times:
-            icone = "✅" if t["pos"] <= 2 else "❌"
-            sg = t["gp"] - t["gc"]
-            linhas.append(f"  {t['pos']}º {icone} {t['time']:<25} {t['pts']}pts  SG:{sg:+d}")
-        linhas.append("")
+    for letter in sorted(standings.keys()):
+        teams = standings[letter]
+        lines.append(f"GROUP {letter}:")
+        for t in teams:
+            icon = "✅" if t["pos"] <= 2 else "❌"
+            gd = t["gp"] - t["gc"]
+            lines.append(f"  {t['pos']}. {icon} {t['time']:<25} {t['pts']}pts  GD:{gd:+d}")
+        lines.append("")
 
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 @mcp.tool()
-async def estatisticas_copa() -> str:
+async def cup_statistics() -> str:
     """
-    Retorna estatísticas gerais da Copa do Mundo 2026: gols, médias e destaques.
+    Returns overall FIFA World Cup 2026 statistics: goals, averages, and top scorers.
     """
     try:
         matches = await _fetch_data()
     except Exception as e:
-        return f"❌ Erro ao buscar dados: {e}"
+        return f"❌ Error fetching data: {e}"
 
-    encerrados = [m for m in matches if _encerrado(m)]
-    total_jogos = len(encerrados)
-    total_gols = sum(m["score"]["ft"][0] + m["score"]["ft"][1] for m in encerrados)
-    media_gols = round(total_gols / total_jogos, 2) if total_jogos else 0
+    finished = [m for m in matches if _encerrado(m)]
+    total_matches = len(finished)
+    total_goals = sum(m["score"]["ft"][0] + m["score"]["ft"][1] for m in finished)
+    avg_goals = round(total_goals / total_matches, 2) if total_matches else 0
 
-    maior_goleada = max(
-        encerrados,
+    biggest_win = max(
+        finished,
         key=lambda m: abs(m["score"]["ft"][0] - m["score"]["ft"][1]),
         default=None,
     )
 
-    artilheiros: dict[str, int] = {}
-    for m in encerrados:
+    scorers: dict[str, int] = {}
+    for m in finished:
         for g in m.get("goals1", []) + m.get("goals2", []):
-            artilheiros[g["name"]] = artilheiros.get(g["name"], 0) + 1
+            scorers[g["name"]] = scorers.get(g["name"], 0) + 1
 
-    top_artilheiros = sorted(artilheiros.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_scorers = sorted(scorers.items(), key=lambda x: x[1], reverse=True)[:5]
 
-    linhas = ["📈 ESTATÍSTICAS - Copa 2026 [openfootball]\n"]
-    linhas.append(f"⚽ Jogos realizados: {total_jogos} de {len(matches)}")
-    linhas.append(f"🥅 Total de gols: {total_gols}")
-    linhas.append(f"📊 Média de gols por jogo: {media_gols}")
+    lines = ["📈 STATISTICS - World Cup 2026 [openfootball]\n"]
+    lines.append(f"⚽ Matches played: {total_matches} of {len(matches)}")
+    lines.append(f"🥅 Total goals: {total_goals}")
+    lines.append(f"📊 Average goals per match: {avg_goals}")
 
-    if maior_goleada:
-        g1, g2 = maior_goleada["score"]["ft"]
-        linhas.append(
-            f"\n💥 Maior goleada: {maior_goleada['team1']} {g1}-{g2} {maior_goleada['team2']} ({maior_goleada['date']})"
+    if biggest_win:
+        g1, g2 = biggest_win["score"]["ft"]
+        lines.append(
+            f"\n💥 Biggest win: {biggest_win['team1']} {g1}-{g2} {biggest_win['team2']} ({biggest_win['date']})"
         )
 
-    if top_artilheiros:
-        linhas.append("\n🏅 Artilheiros:")
-        for nome, gols in top_artilheiros:
-            linhas.append(f"  {gols}⚽ {nome}")
+    if top_scorers:
+        lines.append("\n🏅 Top Scorers:")
+        for name, goals in top_scorers:
+            lines.append(f"  {goals}⚽ {name}")
 
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 # ─────────────────────────────────────────────
