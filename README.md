@@ -18,7 +18,7 @@ Data is sourced from [openfootball/worldcup.json](https://github.com/openfootbal
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/your-username/worldcup-mcp
+git clone https://github.com/Eduardo-Lucas/worldcup-2026-mcp
 cd worldcup-mcp
 
 pip install fastmcp httpx streamlit
