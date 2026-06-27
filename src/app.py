@@ -18,6 +18,12 @@ from src.server import (
     _format_brt,
     _encerrado,
     _placar,
+    recent_matches,
+    upcoming_matches,
+    group_standings,
+    search_team,
+    all_groups,
+    cup_statistics,
 )
 
 st.set_page_config(
@@ -100,7 +106,7 @@ TRANSLATIONS = {
         "title": "World Cup 2026",
         "data_source": "Data: openfootball/worldcup.json",
         "refresh": "🔄 Refresh data",
-        "pages": ["🏆 Recent Matches", "📅 Upcoming Matches", "📊 Standings", "🔍 Team Search", "📈 Statistics"],
+        "pages": ["🏆 Recent Matches", "📅 Upcoming Matches", "📊 Standings", "🔍 Team Search", "📈 Statistics", "💬 Chat"],
         "loading": "Loading World Cup 2026 data...",
         "error_loading": "Error loading data: {}",
         "no_upcoming": "No upcoming matches found.",
@@ -148,12 +154,19 @@ TRANSLATIONS = {
         "stat_biggest": "Biggest win",
         "top_scorers": "🏅 Top Scorers",
         "top_teams": "🏆 Top Teams by Points",
+
+        # Chat
+        "chat_title": "💬 Chat",
+        "chat_placeholder": "Ask anything about the World Cup 2026...",
+        "chat_welcome": "Hello! Ask me anything about the World Cup 2026. Examples:\n- *What are Brazil's results?*\n- *Show Group C standings*\n- *Who are the top scorers?*\n- *Upcoming matches for France*",
+        "chat_thinking": "Thinking...",
+        "chat_clear": "🗑️ Clear chat",
     },
     "pt": {
         "title": "Copa do Mundo 2026",
         "data_source": "Dados: openfootball/worldcup.json",
         "refresh": "🔄 Atualizar dados",
-        "pages": ["🏆 Jogos Recentes", "📅 Próximos Jogos", "📊 Classificação", "🔍 Buscar Time", "📈 Estatísticas"],
+        "pages": ["🏆 Jogos Recentes", "📅 Próximos Jogos", "📊 Classificação", "🔍 Buscar Time", "📈 Estatísticas", "💬 Chat"],
         "loading": "Carregando dados da Copa 2026...",
         "error_loading": "Erro ao carregar dados: {}",
         "no_upcoming": "Nenhum jogo futuro encontrado.",
@@ -201,6 +214,13 @@ TRANSLATIONS = {
         "stat_biggest": "Maior goleada",
         "top_scorers": "🏅 Artilheiros",
         "top_teams": "🏆 Times com mais pontos",
+
+        # Chat
+        "chat_title": "💬 Chat",
+        "chat_placeholder": "Pergunte qualquer coisa sobre a Copa 2026...",
+        "chat_welcome": "Olá! Pergunte qualquer coisa sobre a Copa do Mundo 2026. Exemplos:\n- *Quais os resultados do Brasil?*\n- *Classificação do Grupo C*\n- *Quem são os artilheiros?*\n- *Próximos jogos da França*",
+        "chat_thinking": "Pensando...",
+        "chat_clear": "🗑️ Limpar conversa",
     },
 }
 
@@ -317,6 +337,72 @@ def render_match(m: dict, show_scorers: bool = True):
         with col3:
             st.markdown(f"### {t2}")
         st.caption(f"📅 {date}  |  {context}  |  📍 {venue}")
+
+
+# ─────────────────────────────────────────────
+# Chat — intent detection + answer
+# ─────────────────────────────────────────────
+
+# Reverse map: PT display name → English name
+_PT_TO_EN = {v.lower(): k for k, v in TEAM_NAMES_PT.items()}
+# Also map English names to themselves (case-insensitive)
+_ALL_TEAMS_EN = {k.lower(): k for k in TEAM_NAMES_PT.keys()}
+
+
+def _detect_team(q: str) -> str | None:
+    """Return the English team name if any team name appears in the query."""
+    q_lower = q.lower()
+    # Check Portuguese names first (more specific, e.g. "França" vs "France")
+    for pt, en in _PT_TO_EN.items():
+        if pt in q_lower:
+            return en
+    for en_lower, en in _ALL_TEAMS_EN.items():
+        if en_lower in q_lower:
+            return en
+    return None
+
+
+def _detect_group(q: str) -> str | None:
+    """Return group letter if query mentions a specific group."""
+    import re
+    m = re.search(r'\bgroup\s+([A-La-l])\b|\bgrupo\s+([A-La-l])\b', q, re.IGNORECASE)
+    if m:
+        return (m.group(1) or m.group(2)).upper()
+    return None
+
+
+async def _answer(question: str) -> str:
+    q = question.lower()
+
+    # 1. Specific group standings
+    group = _detect_group(question)
+    if group:
+        return await group_standings(group)
+
+    # 2. Team-specific query
+    team = _detect_team(question)
+    if team:
+        return await search_team(team)
+
+    # 3. All groups summary
+    all_groups_kw = ["all groups", "todos os grupos", "all_groups", "overview", "visão geral"]
+    if any(kw in q for kw in all_groups_kw):
+        return await all_groups()
+
+    # 4. Statistics / top scorers
+    stats_kw = ["statistic", "stats", "artilheiro", "scorer", "gols marcados",
+                "top scorer", "goals", "média", "average", "biggest win", "maior goleada"]
+    if any(kw in q for kw in stats_kw):
+        return await cup_statistics()
+
+    # 5. Upcoming matches
+    upcoming_kw = ["upcoming", "next", "próximo", "próxima", "schedule",
+                   "agenda", "futuro", "quando joga", "when"]
+    if any(kw in q for kw in upcoming_kw):
+        return await upcoming_matches(count=8)
+
+    # 6. Recent / results (default fallback)
+    return await recent_matches(count=8)
 
 
 # ─────────────────────────────────────────────
@@ -494,3 +580,36 @@ elif page == pages[4]:  # Statistics / Estatísticas
         for i, tm in enumerate(top_teams, 1):
             medal = ["🥇", "🥈", "🥉"][i - 1] if i <= 3 else f"{i}."
             st.markdown(f"{medal} **{localize_team(tm['team'])}** ({t('group_prefix')}{tm['group']}) — {tm['pts']} pts  {t('col_gd')}:{tm['gd']:+d}")
+
+
+elif page == pages[5]:  # Chat
+    st.title(t("chat_title"))
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    if st.button(t("chat_clear")):
+        st.session_state.chat_history = []
+        st.rerun()
+
+    # Show welcome message when chat is empty
+    if not st.session_state.chat_history:
+        with st.chat_message("assistant"):
+            st.markdown(t("chat_welcome"))
+
+    # Replay history
+    for role, content in st.session_state.chat_history:
+        with st.chat_message(role):
+            st.markdown(content)
+
+    # Chat input
+    if question := st.chat_input(t("chat_placeholder")):
+        st.session_state.chat_history.append(("user", question))
+        with st.chat_message("user"):
+            st.markdown(question)
+
+        with st.chat_message("assistant"):
+            with st.spinner(t("chat_thinking")):
+                answer = asyncio.run(_answer(question))
+            st.markdown(f"```\n{answer}\n```")
+            st.session_state.chat_history.append(("assistant", f"```\n{answer}\n```"))
